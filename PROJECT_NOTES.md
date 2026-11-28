@@ -79,3 +79,13 @@ Search source for all usages and any additional old RikkaHub visual references.
 ## Update protocol
 
 Append dated work-log entries for each meaningful change. Keep remaining tasks current. Record commit SHAs, workflow run IDs, artifact IDs, test results, and fixes. Never put secrets in this file.
+
+
+### 2026-11-28 — First verified source-asset propagation
+
+- Retrieved the repository's `launchericon.png` as base64 from GitHub and used its exact bytes; no generated substitute was used.
+- Applied those exact launcher source bytes to mipmap foreground assets at mdpi, hdpi, xhdpi, xxhdpi, xxxhdpi, and mipmap-nodpi.
+- Retrieved `noticon.png` separately and applied its exact bytes to `drawable-nodpi/ic_stat_rikkahub.png` (notification-only).
+- Implementation commit on master: `0e1471b7856c1d3f848365cfe32cbbcdd524f012`.
+- The ARM64 workflow is configured to trigger on changes under `app/src/main/res/**`; check the resulting run.
+- Still outstanding: adaptive background/monochrome treatment, verify actual in-app logo references, replace placeholder.webp and placeholder_dark.webp with appropriate image assets, review remaining old artwork, verify build artifact. Do not mark complete until tested.
