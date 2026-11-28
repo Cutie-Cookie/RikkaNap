@@ -54,31 +54,51 @@ object PromptDebugCache {
         return buildHtml(entry.current, entry.previous)
     }
 
+    private fun partSignature(part: UIMessagePart): String = when (part) {
+        is UIMessagePart.Text -> "text:${part.text}"
+        is UIMessagePart.Image -> "image:${part.url}"
+        is UIMessagePart.Video -> "video:${part.url}"
+        is UIMessagePart.Audio -> "audio:${part.url}"
+        is UIMessagePart.Document -> "document:${part.url}:${part.fileName}:${part.mime}"
+        is UIMessagePart.Reasoning -> "reasoning:${part.reasoning}"
+        is UIMessagePart.ToolCall -> "tool-call:${part.toolCallId}:${part.toolName}:${part.arguments}"
+        is UIMessagePart.ToolResult -> "tool-result:${part.toolCallId}:${part.content}:${part.arguments}"
+        is UIMessagePart.ServerTool -> "server-tool:${part.toolCallId}:${part.toolName}:${part.input}:${part.output}:${part.status}"
+        is UIMessagePart.Tool -> "tool:${part.toolCallId}:${part.toolName}:${part.input}:${part.output.joinToString { partSignature(it) }}"
+        is UIMessagePart.Notice -> "notice:${part.title}:${part.text}"
+        UIMessagePart.Search -> "search"
+    }
+
     private fun messageSignature(message: UIMessage): String = buildString {
         append(message.role.name)
-        append('\u001f')
-        // toString() includes the complete data-class payload for text, tools, results and
-        // multimodal parts. It is intentionally conservative: uncertain changes break the prefix.
+        append('\\u001f')
         message.parts.forEach { part ->
-            append(part::class.simpleName.orEmpty())
-            append(':')
-            append(part.toString())
-            append('\u001e')
+            append(partSignature(part))
+            append('\\u001e')
         }
     }
 
-    private fun commonPrefixCount(previous: List<UIMessage>, current: List<UIMessage>): Int {
-        val limit = minOf(previous.size, current.size)
-        for (index in 0 until limit) {
-            if (messageSignature(previous[index]) != messageSignature(current[index])) return index
-        }
-        return limit
+    // Exclude media URLs, metadata, timestamps and object/debug representations from text estimates.
+    private fun textualPayload(part: UIMessagePart): String = when (part) {
+        is UIMessagePart.Text -> part.text
+        is UIMessagePart.Reasoning -> part.reasoning
+        is UIMessagePart.ToolCall -> part.arguments
+        is UIMessagePart.ToolResult -> part.content.toString() + part.arguments.toString()
+        is UIMessagePart.ServerTool -> listOfNotNull(part.input?.toString(), part.output?.toString()).joinToString(" ")
+        is UIMessagePart.Tool -> part.input + part.output.joinToString(" ") { textualPayload(it) }
+        is UIMessagePart.Notice -> part.title + " " + part.text
+        is UIMessagePart.Document -> part.fileName + " " + part.mime
+        is UIMessagePart.Image, is UIMessagePart.Video, is UIMessagePart.Audio -> ""
+        UIMessagePart.Search -> ""
     }
 
-    private fun estimateTokens(messages: List<UIMessage>): Int = messages.sumOf { message ->
-        // A lightweight character-based estimate, not a provider tokenizer.
-        val characters = message.parts.sumOf { it.toString().length }
-        ((characters + 3) / 4) + 4
+    private fun estimateTokens(messages: List<UIMessage>): Int {
+        val characters = messages.sumOf { message -> message.parts.sumOf { textualPayload(it).length } }
+        return if (characters == 0) 0 else (characters + 3) / 4 + messages.size * 3
+    }
+
+    private fun nonTextPartCount(messages: List<UIMessage>): Int = messages.sumOf { message ->
+        message.parts.count { it is UIMessagePart.Image || it is UIMessagePart.Video || it is UIMessagePart.Audio || it is UIMessagePart.Document }
     }
 
     private fun fullText(message: UIMessage): String =
@@ -133,7 +153,7 @@ object PromptDebugCache {
 
         val detail = when {
             common >= old.size && now.size >= old.size ->
-                """<section class="diagnostic good"><div class="diag-title">Stable prefix</div><p>The previous request is preserved as a prefix. New content was appended after it, which is the ideal shape for prefix caching.</p></section>"""
+                """<section class="diagnostic good"><div class="diag-title">Stable prefix</div><p>The previous request’s messages are preserved in the same order. New content follows them. This is a message-level comparison, not confirmation of a provider cache hit.</p></section>"""
             common < old.size && common < now.size && old[common].role == now[common].role -> {
                 val oldText = fullText(old[common])
                 val newText = fullText(now[common])
@@ -160,8 +180,8 @@ object PromptDebugCache {
         return """
             <section class="cache-stats">
               <div><strong>$common</strong><span>shared messages</span></div>
-              <div><strong>$prefixTokens</strong><span>estimated prefix tokens</span></div>
-              <div><strong>$percent%</strong><span>estimated prefix share</span></div>
+              <div><strong>$prefixTokens</strong><span>rough shared text estimate</span></div>
+              <div><strong>$percent%</strong><span>shared text estimate share</span></div>
             </section>
             $detail
         """.trimIndent()
@@ -171,18 +191,23 @@ object PromptDebugCache {
         is UIMessagePart.Text -> ""
         is UIMessagePart.Reasoning -> if (part.reasoning.isBlank()) "" else
             """<details class="part reasoning"><summary>Reasoning</summary><pre>${escapeHtml(part.reasoning)}</pre></details>"""
-        is UIMessagePart.Tool ->
-            """<details class="part tool"><summary>Tool call · ${escapeHtml(part.toolName)}</summary><pre>${escapeHtml(part.input)}</pre></details>"""
-        is UIMessagePart.ToolResult ->
-            """<details class="part result"><summary>Tool result · ${escapeHtml(part.toolCallId)}</summary><pre>${escapeHtml(part.content.toString())}</pre></details>"""
-        else ->
-            """<details class="part attachment"><summary>${escapeHtml(part::class.simpleName ?: "Content part")}</summary><pre>${escapeHtml(part.toString())}</pre></details>"""
+        is UIMessagePart.Tool -> """<details class="part tool"><summary>Tool call · ${escapeHtml(part.toolName)}</summary><pre>${escapeHtml(part.input)}</pre>${part.output.joinToString("") { renderPart(it) }}</details>"""
+        is UIMessagePart.ToolCall -> """<details class="part tool"><summary>Tool call · ${escapeHtml(part.toolName)}</summary><pre>${escapeHtml(part.arguments)}</pre></details>"""
+        is UIMessagePart.ToolResult -> """<details class="part result"><summary>Tool result · ${escapeHtml(part.toolName)}</summary><pre>${escapeHtml(part.content.toString())}</pre></details>"""
+        is UIMessagePart.ServerTool -> """<details class="part tool"><summary>Server tool · ${escapeHtml(part.toolName)} · ${escapeHtml(part.status.name.lowercase())}</summary><pre>${escapeHtml(part.input?.toString().orEmpty())}</pre></details>"""
+        is UIMessagePart.Notice -> """<details class="part notice"><summary>Notice · ${escapeHtml(part.title)}</summary><pre>${escapeHtml(part.text)}</pre></details>"""
+        is UIMessagePart.Image -> """<div class="part attachment"><span>Image attachment</span><small>Media payload not expanded</small></div>"""
+        is UIMessagePart.Video -> """<div class="part attachment"><span>Video attachment</span><small>Media payload not expanded</small></div>"""
+        is UIMessagePart.Audio -> """<div class="part attachment"><span>Audio attachment</span><small>Media payload not expanded</small></div>"""
+        is UIMessagePart.Document -> """<div class="part attachment"><span>Document · ${escapeHtml(part.fileName)}</span><small>${escapeHtml(part.mime)} · content not expanded</small></div>"""
+        UIMessagePart.Search -> """<div class="part attachment"><span>Search marker</span></div>"""
     }
 
     private fun buildHtml(current: Snapshot, previous: Snapshot?): String {
         val messages = current.messages
         val common = previous?.let { commonPrefixCount(it.messages, messages) } ?: messages.size
-        val totalChars = messages.sumOf { fullText(it).length }
+        val totalChars = messages.sumOf { message -> message.parts.sumOf { textualPayload(it).length } }
+        val mediaParts = nonTextPartCount(messages)
         val totalTokens = estimateTokens(messages)
         val capturedAt = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
             .format(Date(current.capturedAtMillis))
@@ -256,6 +281,8 @@ object PromptDebugCache {
                 .role { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.6px; }
                 .role-system { color:var(--amber); } .role-user { color:#4288d8; } .role-assistant { color:var(--green); } .role-tool { color:var(--accent); }
                 .message-index { color:var(--muted); font-size:11px; }
+                .attachment { display:flex; justify-content:space-between; gap:8px; padding:9px 12px; border-top:1px solid var(--line); color:var(--muted); font-size:11px; }
+                .attachment small { text-align:right; opacity:.8; }
                 .message-tokens { margin-left:auto; color:var(--muted); font-size:10px; }
                 pre { white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; font:12px/1.55 ui-monospace,monospace; margin:0; }
                 .message-text { padding:12px; color:var(--text); }
@@ -274,14 +301,14 @@ object PromptDebugCache {
               </div>
               <section class="overview">
                 <div class="metric"><strong>${messages.size}</strong><span>messages sent</span></div>
-                <div class="metric"><strong>${totalTokens}</strong><span>estimated tokens</span></div>
-                <div class="metric"><strong>${totalChars}</strong><span>text characters</span></div>
+                <div class="metric"><strong>~${totalTokens}</strong><span>rough text-token estimate</span></div>
+                <div class="metric"><strong>${totalChars}</strong><span>text payload characters</span></div>
               </section>
-              <div class="meta">Model ID: ${escapeHtml(current.modelId)} · Captured: ${escapeHtml(capturedAt)}</div>
+              <div class="meta">Model ID: ${escapeHtml(current.modelId)} · Captured: ${escapeHtml(capturedAt)} · ${mediaParts} media attachment(s) excluded from text estimate</div>
               ${diagnostic(current, previous)}
               <div class="section-title"><span>Request messages</span><span>${messages.size} items</span></div>
               $cards
-              <div class="foot">Snapshots stay in memory and are cleared when the app process ends. Token counts are rough text-based estimates; attachments, provider framing and provider-side cache hits may differ.</div>
+              <div class="foot">Snapshots stay in memory and are cleared when the app process ends. Text-token figures use a rough character heuristic. Media payloads are counted separately and excluded from that estimate. This screen cannot confirm provider-side cache hits or exact serialized tokens.</div>
             </body>
             </html>
         """.trimIndent()
