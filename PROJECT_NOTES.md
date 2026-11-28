@@ -69,15 +69,7 @@ Search source for all usages and any additional old RikkaHub visual references.
 
 ## Remaining tasks
 
-1. Inspect the exact binary contents of `launchericon.png` and `noticon.png`; confirm dimensions, transparency, and visual appearance. If repository copies are not the owner's supplied files, recover the original uploads rather than guessing.
-2. Review remaining old artwork and ensure provider logos are untouched.
-3. Derive density-correct launcher/adaptive/monochrome resources exclusively from launchericon. Keep the adaptive background exactly `#000000`, maintain valid safe zones, and avoid blur/softening.
-4. Derive the notification small icon exclusively from noticon, using Android-compatible monochrome/alpha treatment as required; scale/crop to fill the available glyph area without clipping important artwork.
-5. Confirm the renamed PNG fallback resources resolve through the existing `R.drawable.placeholder` / `R.drawable.placeholder_dark` references.
-6. Search for remaining old RikkaHub visual assets while preserving provider logos.
-7. Review the diff for accidental deletions, wrong source mapping, and rejected generated art.
-8. Monitor the new ARM64 workflow; verify APK signature and inspect the packaged resource output.
-9. Verify the APK artifact is from the post-branding commit and report its exact workflow/artifact link.
+- No outstanding implementation or build-verification tasks for this icon/fallback pass. Preserve the exact launcher/notification asset separation and keep provider logos unchanged.
 
 ## Update protocol
 
@@ -113,3 +105,14 @@ Append dated work-log entries for each meaningful change. Keep remaining tasks c
 - The earlier successful build `46131200121` produced artifact `15258086671` from commit `0e1471b7856c1d3f848365cfe32cbbcdd524f012`. Its APK contains an APK Signature Scheme v2 signer; extracted certificate subject is `CN=RikkaNap, OU=Android, O=Cutie-Cookie, L=Vancouver, ST=British Columbia, C=CA`, SHA-256 fingerprint `3A:EA:06:4E:29:E9:C5:8F:D1:32:43:F5:39:90:8B:71:00:44:3C:58:EE:75:2B:76:59:D5:D3:65:0D:78:3B:A4`. (Jarsigner's `unsigned` report is not a valid check for v2-only APK signing; the v2 signer block and certificate were parsed directly.)
 - Updated the ARM64 workflow to require all four local.properties signing fields and to run Android `apksigner verify --verbose --print-certs` before uploading. This prevents a future unsigned APK from being uploaded as a successful artifact.
 - Current remaining work: wait for the workflow triggered by the latest master commits; verify its signature-check step, inspect the packaged output, and record its new artifact ID.
+
+### 2026-11-28 — Final ARM64 build and signature verification
+
+- Latest master HEAD: `8b7ec2b643cb3b14d26bea50e5b81419ea19b005`.
+- Final workflow run: `46132713520` — **success**. All steps completed, including `Prepare release signing`, `Build ARM64 GitHub APK`, `Verify APK signature`, and `Upload APK artifact`.
+- The verification step reports APK Signature Scheme v2: `true`; v1/v3/v3.1/v3.2/v4 are false, as expected for this APK. Certificate DN: `CN=RikkaNap, OU=Android, O=Cutie-Cookie, L=Vancouver, ST=British Columbia, C=CA`. SHA-256: `3aea064e29e9c58fd13243f539908b7100443c58ee752b7659d5d3650d783ba4`.
+- Final artifact: `rikkanap-arm64-v8a`, ID `15258633432`, 20,604,991 bytes zipped; expires 2026-12-12. Artifact belongs to run `46132713520` and exact HEAD above.
+- Downloaded the final artifact and independently parsed its APK signing block; v2 signer and the same RikkaNap certificate are present.
+- Added a workflow guard requiring `storeFile`, `storePassword`, `keyAlias`, and `keyPassword` in the `SIGNING_CONFIG` secret, and an `apksigner verify --verbose --print-certs` step before artifact upload. A transient first attempt at the guard escaped the shell variable incorrectly and failed; the pattern was corrected, then the final run passed.
+- Verified `NotificationUtil.kt` uses `R.drawable.ic_stat_rikkahub` as its default small icon. Verified `AIIconMatcher.kt` maps `rikka|auto` provider/model names to `rikkahub.svg`; this provider icon was intentionally retained.
+- The generic fallback resources now use `.png` files with the same Android resource names (`placeholder`, `placeholder_dark`); the final build passed with these changes.
