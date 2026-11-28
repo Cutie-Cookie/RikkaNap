@@ -116,3 +116,14 @@ Append dated work-log entries for each meaningful change. Keep remaining tasks c
 - Added a workflow guard requiring `storeFile`, `storePassword`, `keyAlias`, and `keyPassword` in the `SIGNING_CONFIG` secret, and an `apksigner verify --verbose --print-certs` step before artifact upload. A transient first attempt at the guard escaped the shell variable incorrectly and failed; the pattern was corrected, then the final run passed.
 - Verified `NotificationUtil.kt` uses `R.drawable.ic_stat_rikkahub` as its default small icon. Verified `AIIconMatcher.kt` maps `rikka|auto` provider/model names to `rikkahub.svg`; this provider icon was intentionally retained.
 - The generic fallback resources now use `.png` files with the same Android resource names (`placeholder`, `placeholder_dark`); the final build passed with these changes.
+
+
+### 2026-11-28 — APK file icon discrepancy (open follow-up)
+
+- User reports that the downloaded/built APK file itself does **not** display the wanted RikkaNap icon in the file/download manager.
+- After installing that same APK, the installed app displays the intended icons correctly.
+- Therefore, launcher/installed-app icon resources appear to be working; do **not** casually alter the already-correct launcher foreground, black adaptive background, or notification icon.
+- Before the next actual feature/code updates, investigate why the APK *file* is represented with a different or generic icon. Check whether this is Android package/APK metadata, adaptive icon packaging, the download host/browser's APK file-icon behavior, or a platform cache/display limitation.
+- Compare the packaged APK manifest/resources against the source resources and inspect the APK's embedded application icon using Android build tools. Distinguish the icon shown for the APK file before installation from the icon shown by the installed app.
+- Only change app resources if inspection proves the packaged APK metadata is wrong. If the APK itself is correct and the file manager/browser chooses its own generic icon, document that as an external display behavior rather than damaging working installed icons.
+- Resolve and verify this discrepancy before beginning the next planned feature/update batch.
