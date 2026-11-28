@@ -3,6 +3,8 @@ name: Release
 on:
   # 推送版本号 tag（如 3.4.0，不带 v）时触发；nightly 等非版本号 tag 不会匹配
   push:
+    branches:
+      - master
     tags:
       - '*.*.*'
   workflow_dispatch:
@@ -26,8 +28,9 @@ jobs:
       - name: Check version
         id: version
         run: |
-          TAG="${GITHUB_REF_NAME}"
           VERSION_NAME=$(sed -n 's/^ *versionName = "\(.*\)"/\1/p' app/build.gradle.kts)
+          TAG="${GITHUB_REF_TYPE}"
+          if [ "$TAG" = "branch" ]; then TAG="$VERSION_NAME"; else TAG="${GITHUB_REF_NAME}"; fi
           if [ "$TAG" != "$VERSION_NAME" ]; then
             echo "::error::tag ($TAG) 与 versionName ($VERSION_NAME) 不一致"
             exit 1
