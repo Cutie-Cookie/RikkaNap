@@ -152,7 +152,14 @@ class ChatRequestFactory(
         val hooks = object : AgentHooks {
             override suspend fun prepareStep(messages: List<UIMessage>): StepRequest {
                 Log.i(TAG, "prepareStep: ${turn.model.id}")
-                return buildStep(turn, messages, processingStatus)
+                val step = buildStep(turn, messages, processingStatus)
+                PromptDebugCache.store(
+                    conversationId = turn.conversationId,
+                    messages = step.messages,
+                    modelName = turn.model.displayName,
+                    modelId = turn.model.modelId,
+                )
+                return step
             }
 
             override suspend fun previewStep(message: UIMessage, newPartsFrom: Int) =
