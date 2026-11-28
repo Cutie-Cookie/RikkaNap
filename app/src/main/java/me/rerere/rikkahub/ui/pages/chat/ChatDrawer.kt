@@ -76,6 +76,8 @@ import me.rerere.hugeicons.stroke.TransactionHistory
 import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.data.ai.PromptDebugCache
+import me.rerere.ui.webview.WebViewContentCache
 import me.rerere.rikkahub.data.datastore.ConversationSortOrder
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.Assistant
@@ -414,6 +416,23 @@ fun ChatDrawerContent(
                         expanded = showMenuPopup,
                         onDismissRequest = { showMenuPopup = false }
                     ) {
+                        DropdownMenuItem(
+                            text = { Text("Context Inspector") },
+                            leadingIcon = { Icon(HugeIcons.ChartColumn, null) },
+                            onClick = {
+                                showMenuPopup = false
+                                val html = PromptDebugCache.get(current.id)
+                                if (html == null) {
+                                    toaster.show(
+                                        "No model request has been captured for this chat yet",
+                                        type = ToastType.Warning,
+                                    )
+                                } else {
+                                    val contentId = WebViewContentCache.store(context.cacheDir, html)
+                                    navController.navigate(Screen.WebView(contentId = contentId))
+                                }
+                            }
+                        )
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.chat_page_menu_image_generation)) },
                             leadingIcon = { Icon(HugeIcons.Image02, null) },
