@@ -1,74 +1,81 @@
 # RikkaNap — Project Notes
 
-This branch is intentionally documentation-only. Keep implementation changes on `master`; use this branch as the durable handoff log and project notebook.
+This branch is documentation-only. Keep implementation changes on `master`; use this branch as the durable handoff log and project notebook.
 
 ## Current objective
 
-Replace all remaining RikkaHub visual branding and image fallback artwork with the exact RikkaNap logo artwork supplied by the project owner. Do not invent or substitute a new logo.
+Replace remaining RikkaHub visual branding and image fallback artwork with the exact artwork supplied by the project owner. Never invent or substitute a logo.
 
-## Non-negotiable branding requirements
+## Non-negotiable asset mapping
 
-- Use the owner's previously uploaded logo as the single source of truth.
-- Preserve its appearance and identity. Do not redraw it, reinterpret it, or generate an alternative.
-- Apply it consistently to Android launcher/adaptive icon assets at every density, monochrome icon, notification icon where appropriate, and in-app logo/branding artwork.
-- Replace old placeholder/fallback images with coordinated RikkaNap artwork derived from the supplied logo.
-- Keep functional fallback behavior intact; replace the displayed art, not the fallback mechanism.
+- `launchericon.png` is the **launcher/app icon source**. It supplies the home-screen icon, adaptive launcher icon, app drawer/recent-app identity, and related in-app launcher branding.
+- `noticon.png` is the **notification icon source only**. It is not the launcher icon. Use it for the Android status-bar/notification small icon and corresponding notification-specific resources.
+- Keep those two identities separate. Do not use noticon for launcher artwork or launchericon as a replacement for the notification glyph.
+- Preserve the exact supplied artwork. Resize/crop/derive platform-specific variants only as technically necessary; do not redesign, reinterpret, or generate alternative art.
+- Replace old placeholder/fallback image artwork with coordinated RikkaNap visuals based on the supplied brand assets; retain functional fallback behavior.
 - Do not overwrite AI provider icons in `app/src/main/assets/icons/`.
-- Do not ship the temporary generated sleeping-cat/crescent concept. It was rejected by the owner.
+- Do not ship the rejected generated sleeping-cat/crescent concept.
 
 ## Repository
 
 - GitHub: https://github.com/Cutie-Cookie/rikkanap
-- Main implementation branch: `master`
+- Implementation branch: `master`
+- Notes branch: `project-notes`
 - App display name: RikkaNap
 - Application ID: `com.cutiecookie.rikkanap`
-- Current known master HEAD at notebook creation: `8872d68ada7882e36989731d05dcb09f8aa8e537`
+- Master HEAD when notes branch was created: `8872d68ada7882e36989731d05dcb09f8aa8e537`
 
 ## Asset inventory to audit
 
-- `launchericon.png` (root; likely owner-provided launcher artwork — inspect first)
-- `noticon.png` (root; inspect as notification artwork)
-- `docs/icon.png`
+**Launcher artwork (use launchericon):**
+- `launchericon.png` (root)
+- `docs/icon.png` (verify whether it matches launchericon)
 - `app/src/main/res/drawable-nodpi/ic_launcher_foreground.png`
-- `app/src/main/res/drawable-nodpi/ic_stat_rikkahub.png`
-- `app/src/main/res/drawable/placeholder.webp`
-- `app/src/main/res/drawable/placeholder_dark.webp`
 - `app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml`
 - `app/src/main/res/mipmap-{mdpi,hdpi,xhdpi,xxhdpi,xxxhdpi}/ic_launcher_{background,foreground,monochrome}.png`
 - `app/src/main/res/mipmap-nodpi/ic_launcher.png`
-- Search source for all usages of the above assets and any remaining RikkaHub-specific image references.
 
-## Known app/build context
+**Notification artwork (use noticon):**
+- `noticon.png` (root)
+- `app/src/main/res/drawable-nodpi/ic_stat_rikkahub.png`
 
-- Android ARM64 workflow: `.github/workflows/build-arm64-apk.yml`
-- Workflow builds `assembleGithubRelease` and uploads artifact `rikkanap-arm64-v8a`.
-- Previous successful build run `46090391672` predates the requested branding/fallback work and is NOT the final deliverable.
-- Previous artifact ID `15241381314` is stale for this task and must not be presented as the updated APK.
-- Signing secrets were configured by the owner; do not expose or commit signing material.
+**Image fallbacks:**
+- `app/src/main/res/drawable/placeholder.webp`
+- `app/src/main/res/drawable/placeholder_dark.webp`
+
+Search source for all usages and any additional old RikkaHub visual references.
+
+## Build context
+
+- ARM64 workflow: `.github/workflows/build-arm64-apk.yml`
+- Workflow builds `assembleGithubRelease` and uploads `rikkanap-arm64-v8a`.
+- Previous successful run `46090391672` predates this work and is not the final deliverable.
+- Previous artifact `15241381314` is stale for this task.
+- Signing secrets are configured by the owner; never expose or commit signing material.
 
 ## Work log
 
-### 2026-11-28 — Initial handoff
+### 2026-11-28 — Initial handoff and correction
 
-- Confirmed old launcher artwork still exists in the Android mipmap resource set.
-- Confirmed adaptive icon XML referenced the legacy drawable foreground and black background.
-- Identified the placeholder WebP resources and notification icon resource for replacement.
-- A generated alternative icon concept was mistakenly proposed; owner explicitly rejected it. It must not be used.
-- No branding/fallback implementation commit has been made on `master` yet.
-- A temporary unreferenced Git tree object may exist from an abandoned attempt; it was never committed or pushed to a branch.
+- Confirmed old launcher artwork remains in Android mipmap resources and adaptive icon XML points to legacy foreground artwork.
+- Identified placeholder WebP resources and notification-specific drawable.
+- A generated alternative launcher concept was mistakenly proposed and explicitly rejected. It must not be used.
+- Owner clarified exact mapping: `launchericon.png` is for all launcher/app icon uses; `noticon.png` is for notifications only.
+- No branding/fallback implementation commit has been made on `master`.
+- A temporary unreferenced Git tree object from an abandoned attempt was never committed or pushed.
 
 ## Remaining tasks
 
-1. Locate and verify the exact owner-supplied logo bytes. Inspect `launchericon.png`, `noticon.png`, and `docs/icon.png`; if the actual upload is not present in the repository, recover it from the original conversation attachment or ask the owner for that one file. Never substitute generated artwork.
-2. Inspect image dimensions, transparency, safe areas, and visual appearance before preparing derivatives.
-3. Generate density-correct launcher/adaptive/monochrome/notification assets from the verified source logo. Keep notification artwork Android-compatible and legible.
-4. Identify all source references to placeholder/fallback resources and replace their image content with consistent, light/dark-appropriate variants derived from the supplied identity.
-5. Search for any remaining old RikkaHub logo artwork in app UI, docs, and packaging; change visual assets only where appropriate, preserving provider logos.
-6. Review the complete diff and ensure no generated rejected artwork or accidental deletions are included.
-7. Commit the asset replacement to `master`.
-8. Monitor the new ARM64 GitHub Actions run triggered by the commit; inspect job logs if it fails.
-9. Verify the new artifact belongs to the post-branding commit, then report the exact run/artifact link and status.
+1. Inspect the exact binary contents of `launchericon.png` and `noticon.png`; confirm dimensions, transparency, and visual appearance. If repository copies are not the owner's supplied files, recover the original uploads rather than guessing.
+2. Inspect `docs/icon.png` and current Android resources; compare to launchericon and identify all stale logo artwork.
+3. Derive density-correct launcher/adaptive/monochrome resources exclusively from launchericon. Keep adaptive foreground/background composition and safe zones valid.
+4. Derive the notification small icon exclusively from noticon, using Android-compatible monochrome/alpha treatment as required.
+5. Find all placeholder/fallback usages and replace their image content with cohesive light/dark variants based on the approved launcher identity, retaining fallback logic.
+6. Search for remaining old RikkaHub visual assets while preserving provider logos.
+7. Review the diff for accidental deletions, wrong source mapping, and rejected generated art; commit the verified changes to master.
+8. Monitor the new ARM64 workflow; inspect and fix any failures.
+9. Verify the APK artifact is from the post-branding commit and report its exact workflow/artifact link.
 
 ## Update protocol
 
-For each meaningful change, append a dated entry under Work log and update Remaining tasks. Record commit SHAs, workflow run IDs, artifact IDs, failures, and fixes. Keep secrets out of this file.
+Append dated work-log entries for each meaningful change. Keep remaining tasks current. Record commit SHAs, workflow run IDs, artifact IDs, test results, and fixes. Never put secrets in this file.
