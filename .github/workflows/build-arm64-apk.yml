@@ -1,4 +1,5 @@
 name: Build ARM64 APK
+# Context Inspector test builds are also produced from feature/context-inspector.
 
 on:
   push:
