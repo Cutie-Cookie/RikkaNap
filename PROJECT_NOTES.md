@@ -139,3 +139,14 @@ Append dated work-log entries for each meaningful change. Keep remaining tasks c
 - No app resource change is justified at this point. In particular, do not change the working launcher artwork, adaptive black background, or notification icon, and do not add a speculative `roundIcon` just to chase a file-manager thumbnail.
 - To distinguish external display behavior conclusively, compare the same APK in another file manager/package installer or inspect its icon in Android's package installer UI. If the package installer preview also shows the correct icon, the remaining generic APK file icon is a host file-browser limitation/cache, not an app defect.
 - This investigation is complete enough to proceed with planned app updates; the file-thumbnail discrepancy remains a display-layer observation unless a different package installer demonstrates incorrect embedded icon resolution.
+
+
+### 2026-11-28 — AMOLED Dark Mode surface palette improvement
+
+- Reviewed `MiaoWuNYA/rikkahub-sillytavern-android` UI theme implementation, especially `ui/theme/Theme.kt`, `ui/theme/Color.kt`, and its AMOLED preference hook.
+- Root cause in RikkaNap: the AMOLED toggle already existed and changed only Material color-scheme `background` and `surface`. Material 3 cards, sheets, menus, and other UI surfaces primarily use additional roles such as `surfaceContainer*`, `surfaceDim`, `surfaceBright`, and `surfaceVariant`; those remained gray, so AMOLED mode looked only partially applied.
+- Applied the fork's focused surface-role treatment to RikkaNap's existing `RikkahubTheme`, without importing its unrelated UI/theme redesigns or changing the preference/storage behavior.
+- AMOLED palette now sets background/surface/surfaceDim/surfaceContainerLowest to `#000000`, surfaceContainerLow and surfaceContainer to `#000000`, surfaceContainerHigh and surfaceVariant to `#101010`, and surfaceContainerHighest and surfaceBright to `#161616`.
+- The override remains conditional on both dark theme and the existing AMOLED toggle. Light mode and ordinary dark mode are unchanged; existing custom/dynamic theme accent colors are preserved.
+- Implementation commit on `master`: `f641009c7fb2e176f6dac289f6e613d3e8306486`.
+- Verification/build status to be recorded after CI completes.
