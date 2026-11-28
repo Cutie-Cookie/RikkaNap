@@ -1,32 +1,29 @@
 name: Release
 
 on:
-  # 推送版本号 tag（如 3.4.0，不带 v）时触发；nightly 等非版本号 tag 不会匹配
+  # Push a version tag (for example 3.4.0, without v).
   push:
-    branches:
-      - master
-    paths:
-      - '.github/workflows/release.yml'
     tags:
       - '*.*.*'
   workflow_dispatch:
+  # Fallback trigger when the connected GitHub integration cannot dispatch workflows.
+  issue_comment:
+    types: [created]
 
 env:
-  # Play 发布轨道：production / beta / alpha / internal
   PLAY_TRACK: production
-  # draft：上传后停在 Play Console 草稿，填好更新说明后手动发布
   PLAY_STATUS: draft
 
 jobs:
   release:
+    if: ${{ github.event_name != 'issue_comment' || (github.event.issue.pull_request == null && contains(github.event.comment.body, '/rikkanap-release')) }}
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # 创建 Release 需要写权限
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
 
-      # tag 必须和 versionName 一致，避免打错 tag 发出版本号对不上的包
       - name: Check version
         id: version
         run: |
@@ -34,22 +31,19 @@ jobs:
           TAG="${GITHUB_REF_TYPE}"
           if [ "$TAG" = "branch" ]; then TAG="$VERSION_NAME"; else TAG="${GITHUB_REF_NAME}"; fi
           if [ "$TAG" != "$VERSION_NAME" ]; then
-            echo "::error::tag ($TAG) 与 versionName ($VERSION_NAME) 不一致"
+            echo "::error::tag ($TAG) does not match versionName ($VERSION_NAME)"
             exit 1
           fi
           echo "version=$TAG" >> "$GITHUB_OUTPUT"
 
-      # 与 Android Studio 自带的 JetBrains Runtime 21 保持一致
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'jetbrains'
           java-version: '21'
         env:
-          # jetbrains 安装器通过 GitHub API 查询版本，带上 token 避免被限流
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # web 模块的 preBuild 会执行 `pnpm run build` 构建前端，必须准备好 Node + pnpm
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -62,7 +56,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: web-ui/pnpm-lock.yaml
 
-      # gradle 的 buildWebUi 任务只跑 build 不跑 install，需在此提前安装依赖
       - name: Install web-ui dependencies
         working-directory: web-ui
         run: pnpm install --frozen-lockfile
@@ -77,15 +70,9 @@ jobs:
 
       - name: Prepare build files
         run: |
-          # 解码base64编码的keystore文件
           echo "${{ secrets.KEY_BASE64 }}" | base64 -d > app/app.key
-
-          # 写入签名配置到local.properties
           echo "${{ secrets.SIGNING_CONFIG }}" > local.properties
 
-
-      # 两个渠道必须分开跑：splits.abi 按命令里是否含 bundle 任务决定是否拆分，
-      # 放在同一条命令里 APK 就不会按 ABI 拆分了
       - name: Build GitHub APK
         run: |
           chmod +x gradlew
@@ -94,7 +81,6 @@ jobs:
       - name: Build Play AAB
         run: ./gradlew bundlePlayRelease
 
-      # 只发 arm64 APK，文件名带版本号；mapping 压缩成 zip，解压后用 retrace 还原崩溃堆栈
       - name: Prepare release assets
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -105,7 +91,6 @@ jobs:
           (cd dist && zip -j "mapping-${VERSION}.zip" "mapping-${VERSION}.txt" && rm "mapping-${VERSION}.txt")
           ls -l dist
 
-      # 建草稿 Release，填好更新日志后在 GitHub 上手动发布
       - name: Create draft release
         uses: softprops/action-gh-release@v2
         with:
