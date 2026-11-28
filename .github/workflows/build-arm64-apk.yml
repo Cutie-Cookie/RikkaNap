@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - feature/context-inspector
     paths:
       - '.github/workflows/build-arm64-apk.yml'
       - 'app/build.gradle.kts'
