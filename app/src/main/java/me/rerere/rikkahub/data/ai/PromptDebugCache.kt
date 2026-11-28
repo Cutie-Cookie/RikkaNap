@@ -71,10 +71,10 @@ object PromptDebugCache {
 
     private fun messageSignature(message: UIMessage): String = buildString {
         append(message.role.name)
-        append('\\u001f')
+        append('\u001f')
         message.parts.forEach { part ->
             append(partSignature(part))
-            append('\\u001e')
+            append('\u001e')
         }
     }
 
