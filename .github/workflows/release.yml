@@ -4,7 +4,8 @@ on:
   # 推送版本号 tag（如 3.4.0，不带 v）时触发；nightly 等非版本号 tag 不会匹配
   push:
     tags:
-      - '[0-9]+.[0-9]+.[0-9]+'
+      - '*.*.*'
+  workflow_dispatch:
 
 env:
   # Play 发布轨道：production / beta / alpha / internal
