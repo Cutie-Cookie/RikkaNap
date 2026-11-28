@@ -149,4 +149,4 @@ Append dated work-log entries for each meaningful change. Keep remaining tasks c
 - AMOLED palette now sets background/surface/surfaceDim/surfaceContainerLowest to `#000000`, surfaceContainerLow and surfaceContainer to `#000000`, surfaceContainerHigh and surfaceVariant to `#101010`, and surfaceContainerHighest and surfaceBright to `#161616`.
 - The override remains conditional on both dark theme and the existing AMOLED toggle. Light mode and ordinary dark mode are unchanged; existing custom/dynamic theme accent colors are preserved.
 - Implementation commit on `master`: `f641009c7fb2e176f6dac289f6e613d3e8306486`.
-- Verification/build status to be recorded after CI completes.
+- GitHub Actions did not create a new build run for the connector-authored commit (latest visible workflow run still targets the previous commit). The source change is committed, but a fresh CI build is still required before treating it as build-verified.
