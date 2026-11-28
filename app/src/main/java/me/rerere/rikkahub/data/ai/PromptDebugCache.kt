@@ -78,6 +78,14 @@ object PromptDebugCache {
         }
     }
 
+    private fun commonPrefixCount(previous: List<UIMessage>, current: List<UIMessage>): Int {
+        val limit = minOf(previous.size, current.size)
+        for (index in 0 until limit) {
+            if (messageSignature(previous[index]) != messageSignature(current[index])) return index
+        }
+        return limit
+    }
+
     // Exclude media URLs, metadata, timestamps and object/debug representations from text estimates.
     private fun textualPayload(part: UIMessagePart): String = when (part) {
         is UIMessagePart.Text -> part.text
