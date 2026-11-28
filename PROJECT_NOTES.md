@@ -12,6 +12,9 @@ Replace remaining RikkaHub visual branding and image fallback artwork with the e
 - `noticon.png` is the **notification icon source only**. It is not the launcher icon. Use it for the Android status-bar/notification small icon and corresponding notification-specific resources.
 - Keep those two identities separate. Do not use noticon for launcher artwork or launchericon as a replacement for the notification glyph.
 - Preserve the exact supplied artwork. Resize/crop/derive platform-specific variants only as technically necessary; do not redesign, reinterpret, or generate alternative art.
+- **Launcher adaptive-icon background must be solid `#000000`** (not sampled from the logo or replaced with another color).
+- Keep launcher artwork crisp: no blur, softening, glow, or low-resolution upscaling. Use proper-resolution exports and preserve sharp edges.
+- The notification glyph must use the available notification canvas fully: scale/crop the actual `noticon.png` artwork so it visibly fills the notification small-icon area rather than appearing tiny with excessive padding. Apply Android-required monochrome/alpha treatment without changing its identity.
 - Replace old placeholder/fallback image artwork with coordinated RikkaNap visuals based on the supplied brand assets; retain functional fallback behavior.
 - Do not overwrite AI provider icons in `app/src/main/assets/icons/`.
 - Do not ship the rejected generated sleeping-cat/crescent concept.
@@ -68,8 +71,8 @@ Search source for all usages and any additional old RikkaHub visual references.
 
 1. Inspect the exact binary contents of `launchericon.png` and `noticon.png`; confirm dimensions, transparency, and visual appearance. If repository copies are not the owner's supplied files, recover the original uploads rather than guessing.
 2. Inspect `docs/icon.png` and current Android resources; compare to launchericon and identify all stale logo artwork.
-3. Derive density-correct launcher/adaptive/monochrome resources exclusively from launchericon. Keep adaptive foreground/background composition and safe zones valid.
-4. Derive the notification small icon exclusively from noticon, using Android-compatible monochrome/alpha treatment as required.
+3. Derive density-correct launcher/adaptive/monochrome resources exclusively from launchericon. Keep the adaptive background exactly `#000000`, maintain valid safe zones, and avoid blur/softening.
+4. Derive the notification small icon exclusively from noticon, using Android-compatible monochrome/alpha treatment as required; scale/crop to fill the available glyph area without clipping important artwork.
 5. Find all placeholder/fallback usages and replace their image content with cohesive light/dark variants based on the approved launcher identity, retaining fallback logic.
 6. Search for remaining old RikkaHub visual assets while preserving provider logos.
 7. Review the diff for accidental deletions, wrong source mapping, and rejected generated art; commit the verified changes to master.
@@ -80,6 +83,13 @@ Search source for all usages and any additional old RikkaHub visual references.
 
 Append dated work-log entries for each meaningful change. Keep remaining tasks current. Record commit SHAs, workflow run IDs, artifact IDs, test results, and fixes. Never put secrets in this file.
 
+
+### 2026-11-28 — Owner's explicit visual requirements
+
+- Launcher adaptive-icon background: solid `#000000`.
+- Launcher icon must remain crisp; no blur or softening.
+- Notification icon must fill the notification icon area, avoiding excessive transparent padding.
+- The current adaptive icon XML already points to `@color/black`, whose value is `#FF000000`; retain this exact background.
 
 ### 2026-11-28 — First verified source-asset propagation
 
