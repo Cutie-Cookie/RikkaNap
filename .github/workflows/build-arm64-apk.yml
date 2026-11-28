@@ -54,8 +54,8 @@ jobs:
           test -s app/app.key
           printf '%s\n' "${{ secrets.SIGNING_CONFIG }}" > local.properties
           for property in storeFile storePassword keyAlias keyPassword; do
-            if ! grep -Eq "^\${property}=.+" local.properties; then
-              echo "::error::SIGNING_CONFIG is missing required property: \${property}"
+            if ! grep -Eq "^${property}=.+" local.properties; then
+              echo "::error::SIGNING_CONFIG is missing required property: ${property}"
               exit 1
             fi
           done
