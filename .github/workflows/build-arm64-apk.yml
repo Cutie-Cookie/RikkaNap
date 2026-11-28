@@ -47,9 +47,18 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Prepare release signing
+        shell: bash
         run: |
-          echo "${{ secrets.KEY_BASE64 }}" | base64 -d > app/app.key
-          echo "${{ secrets.SIGNING_CONFIG }}" > local.properties
+          set -euo pipefail
+          printf '%s' "${{ secrets.KEY_BASE64 }}" | base64 --decode > app/app.key
+          test -s app/app.key
+          printf '%s\n' "${{ secrets.SIGNING_CONFIG }}" > local.properties
+          for property in storeFile storePassword keyAlias keyPassword; do
+            if ! grep -Eq "^\${property}=.+" local.properties; then
+              echo "::error::SIGNING_CONFIG is missing required property: \${property}"
+              exit 1
+            fi
+          done
 
       - name: Build ARM64 GitHub APK
         run: |
@@ -59,6 +68,14 @@ jobs:
           cp app/build/outputs/apk/github/release/*-arm64-v8a-release.apk dist/rikkanap-arm64-v8a.apk
           test -s dist/rikkanap-arm64-v8a.apk
           file dist/rikkanap-arm64-v8a.apk
+
+      - name: Verify APK signature
+        shell: bash
+        run: |
+          set -euo pipefail
+          APKSIGNER="$(find "${ANDROID_HOME:-${ANDROID_SDK_ROOT}}" -type f -path '*/build-tools/*/apksigner' | sort -V | tail -n 1)"
+          test -n "$APKSIGNER"
+          "$APKSIGNER" verify --verbose --print-certs dist/rikkanap-arm64-v8a.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
