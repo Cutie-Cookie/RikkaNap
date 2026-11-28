@@ -3,7 +3,6 @@ package me.rerere.rikkahub.data.ai
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
-import me.rerere.rikkahub.data.ai.context.estimateContextTokens
 import java.text.DateFormat
 import java.util.Date
 import kotlin.uuid.Uuid
@@ -58,8 +57,6 @@ object PromptDebugCache {
     private fun messageSignature(message: UIMessage): String = buildString {
         append(message.role.name)
         append('\u001f')
-        append(message.name.orEmpty())
-        append('\u001f')
         // toString() includes the complete data-class payload for text, tools, results and
         // multimodal parts. It is intentionally conservative: uncertain changes break the prefix.
         message.parts.forEach { part ->
@@ -78,6 +75,12 @@ object PromptDebugCache {
         return limit
     }
 
+    private fun estimateTokens(messages: List<UIMessage>): Int = messages.sumOf { message ->
+        // A lightweight character-based estimate, not a provider tokenizer.
+        val characters = message.parts.sumOf { it.toString().length }
+        ((characters + 3) / 4) + 4
+    }
+
     private fun fullText(message: UIMessage): String =
         message.parts.filterIsInstance<UIMessagePart.Text>()
             .joinToString("\n") { it.text }
@@ -93,7 +96,6 @@ object PromptDebugCache {
         if (value.isBlank()) return "(empty)"
         val start = (index - 52).coerceAtLeast(0)
         val end = (index + 112).coerceAtMost(value.length)
-        val local = (index - start).coerceIn(0, end - start)
         return (if (start > 0) "…" else "") + value.substring(start, index.coerceIn(start, end)) +
             "▶" + value.substring(index.coerceIn(start, end), end) + (if (end < value.length) "…" else "")
     }
@@ -125,8 +127,8 @@ object PromptDebugCache {
         val old = previous.messages
         val now = current.messages
         val common = commonPrefixCount(old, now)
-        val prefixTokens = estimateContextTokens(now.take(common))
-        val totalTokens = estimateContextTokens(now)
+        val prefixTokens = estimateTokens(now.take(common))
+        val totalTokens = estimateTokens(now)
         val percent = if (totalTokens > 0) (prefixTokens * 100 / totalTokens).coerceIn(0, 100) else 0
 
         val detail = when {
@@ -181,7 +183,7 @@ object PromptDebugCache {
         val messages = current.messages
         val common = previous?.let { commonPrefixCount(it.messages, messages) } ?: messages.size
         val totalChars = messages.sumOf { fullText(it).length }
-        val totalTokens = estimateContextTokens(messages)
+        val totalTokens = estimateTokens(messages)
         val capturedAt = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
             .format(Date(current.capturedAtMillis))
         val cards = buildString {
@@ -195,15 +197,13 @@ object PromptDebugCache {
                 val text = message.parts.filterIsInstance<UIMessagePart.Text>()
                     .joinToString("\n") { it.text }
                 val parts = message.parts.joinToString("") { renderPart(it) }
-                val name = message.name?.takeIf { it.isNotBlank() }
                 append(
                     """
                     <article class="message $status">
                       <header class="message-head">
                         <span class="role role-${role.lowercase()}">$role</span>
                         <span class="message-index">#${index + 1}</span>
-                        ${name?.let { """<span class="message-name">${escapeHtml(it)}</span>""" }.orEmpty()}
-                        <span class="message-tokens">~${estimateContextTokens(listOf(message))} tokens</span>
+                        <span class="message-tokens">~${estimateTokens(listOf(message))} tokens</span>
                       </header>
                       ${if (text.isNotBlank()) """<pre class="message-text">${escapeHtml(text)}</pre>""" else """<div class="empty-content">No plain-text body</div>"""}
                       $parts
@@ -255,7 +255,7 @@ object PromptDebugCache {
                 .message-head { display:flex; align-items:center; flex-wrap:wrap; gap:7px; padding:10px 12px; background:var(--surface2); }
                 .role { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.6px; }
                 .role-system { color:var(--amber); } .role-user { color:#4288d8; } .role-assistant { color:var(--green); } .role-tool { color:var(--accent); }
-                .message-index,.message-name { color:var(--muted); font-size:11px; }
+                .message-index { color:var(--muted); font-size:11px; }
                 .message-tokens { margin-left:auto; color:var(--muted); font-size:10px; }
                 pre { white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; font:12px/1.55 ui-monospace,monospace; margin:0; }
                 .message-text { padding:12px; color:var(--text); }
@@ -281,7 +281,7 @@ object PromptDebugCache {
               ${diagnostic(current, previous)}
               <div class="section-title"><span>Request messages</span><span>${messages.size} items</span></div>
               $cards
-              <div class="foot">Snapshots stay in memory and are cleared when the app process ends. Token counts and cache-prefix matching are estimates; provider-side cache hits may differ.</div>
+              <div class="foot">Snapshots stay in memory and are cleared when the app process ends. Token counts are rough text-based estimates; attachments, provider framing and provider-side cache hits may differ.</div>
             </body>
             </html>
         """.trimIndent()
