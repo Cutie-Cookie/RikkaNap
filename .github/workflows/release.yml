@@ -1,14 +1,14 @@
 name: Release
 
 on:
-  # Push a version tag (for example 3.4.0, without v).
   push:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/release.yml'
     tags:
       - '*.*.*'
   workflow_dispatch:
-  # Fallback trigger when the connected GitHub integration cannot dispatch workflows.
-  issue_comment:
-    types: [created]
 
 env:
   PLAY_TRACK: production
@@ -16,7 +16,6 @@ env:
 
 jobs:
   release:
-    if: ${{ github.event_name != 'issue_comment' || (github.event.issue.pull_request == null && contains(github.event.comment.body, '/rikkanap-release')) }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
